@@ -89,13 +89,16 @@ int match(parser *p, const char* to_match) {
       parser_skip(p);
       to_match += 1;
       break;
+    case TOK_WILD:
+      parser_skip(p);
+      to_match += 1;
+      break;
     case TOK_EOF:
       return 1;
     default:
-      break;
+      return 0;
     }
   }
-  return 0;
 }
 
 spec("regex") {
@@ -126,6 +129,15 @@ spec("regex") {
   it("parser should match multiple character") {
     parser p = new_parser("abc");
     check(match(&p, "abc") == 1);
+  }
+
+  it("parser should match anything to wildcard character") {
+    const int alphabet_len = 26;
+    const char* alphabet[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "x", "y", "w", "z"};
+    for(int i = 0; i < alphabet_len; i++) {
+      parser p = new_parser(".");
+      check(match(&p, alphabet[i]) == 1);
+    }
   }
 
 }
