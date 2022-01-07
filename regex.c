@@ -1,7 +1,26 @@
 #include "bdd.h"
 
+#define ENUMERATE_SPECIAL_CHARACTERS(O) \
+  O('.')                                \
+  O('?')                                \
+  O('*')                                \
+  O('+')                                \
+  O('|')                                \
+  O('(')                                \
+  O(')')
+
+#define CASE(e) case e:
+#define CASE_SPECIAL_CHARACTERS ENUMERATE_SPECIAL_CHARACTERS(CASE)
+
 typedef enum {
   TOK_CHAR,
+  TOK_WILD = '.',
+  TOK_QUES = '?',
+  TOK_AST = '*',
+  TOK_PLUS = '+',
+  TOK_OR = '|',
+  TOK_LEFT_PAREN = '(',
+  TOK_RIGHT_PAREN = ')',
 } token_type;
 
 typedef struct {
@@ -22,6 +41,9 @@ token tokenizer_next(tokenizer *state) {
   token t = {0};
 
   switch(begin[0]) {
+  CASE_SPECIAL_CHARACTERS
+    state->position += 1;
+    return (token) {.type = (token_type) begin[0], .begin = begin, .size  = 1};
     default:
       state->position += 1;
       return (token) {.type = TOK_CHAR, .begin = begin, .size  = 1};
@@ -39,9 +61,23 @@ tokenizer new_tokenizer(const char* string) {
 }
 
 spec("regex") {
-  it("should read a single character") {
+  it("tokenizer should read a single character") {
     tokenizer tokenizer = new_tokenizer("a");
     token t = tokenizer.last_token;
     check(t.type == TOK_CHAR);
+  }
+
+  it("tokenizer should read a single character for each special character") {
+
+    const int len = 7;
+    const char *special_chars[] = {".", "?", "*", "+", "|", "(", ")"};
+    const token_type special_chars_types[] = {TOK_WILD, TOK_QUES, TOK_AST, TOK_PLUS, TOK_OR, TOK_LEFT_PAREN, TOK_RIGHT_PAREN};
+
+    for (int i = 0; i < len; i++) {
+      tokenizer tokenizer = new_tokenizer(special_chars[i]);
+      token t = tokenizer.last_token;
+      check(t.type == special_chars_types[i]);
+    }
+
   }
 }
