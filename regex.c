@@ -1,13 +1,13 @@
 #include "bdd.h"
 
-#define ENUMERATE_SPECIAL_CHARACTERS(O) \
-  O('.')                                \
-  O('?')                                \
-  O('*')                                \
-  O('+')                                \
-  O('|')                                \
-  O('(')                                \
-  O(')')                                \
+#define ENUMERATE_SPECIAL_CHARACTERS(O)         \
+  O('.')                                        \
+  O('?')                                        \
+  O('*')                                        \
+  O('+')                                        \
+  O('|')                                        \
+  O('(')                                        \
+  O(')')                                        \
   O('\0')
 
 #define CASE(e) case e:
@@ -43,12 +43,12 @@ token tokenizer_next(tokenizer *state) {
   token t = {0};
 
   switch(begin[0]) {
-  CASE_SPECIAL_CHARACTERS
-    state->position += 1;
-    return (token) {.type = (token_type) begin[0], .begin = begin, .size  = 1};
-    default:
+    CASE_SPECIAL_CHARACTERS
       state->position += 1;
-      return (token) {.type = TOK_CHAR, .begin = begin, .size  = 1};
+    return (token) {.type = (token_type) begin[0], .begin = begin, .size  = 1};
+  default:
+    state->position += 1;
+    return (token) {.type = TOK_CHAR, .begin = begin, .size  = 1};
   }
 
   return t;
@@ -64,11 +64,12 @@ tokenizer new_tokenizer(const char* string) {
 
 typedef struct {
   tokenizer tok_state;
+  token prev_token;
 } parser;
 
 parser new_parser(const char* str) {
   tokenizer toks = new_tokenizer(str);
-  return (parser) {.tok_state = toks};
+  return (parser) {.tok_state = toks, .prev_token = toks.last_token};
 }
 
 token parser_peek(parser *p) {
@@ -76,18 +77,37 @@ token parser_peek(parser *p) {
 }
 
 void parser_skip(parser *p) {
+  p->prev_token = p->tok_state.last_token;
   p->tok_state.last_token = tokenizer_next(&p->tok_state);
+}
+
+int match(parser *p, const char* to_match);
+
+int match_modifier(parser *p, const char* to_match) {
+
+  for(;;) {
+    switch(parser_peek(p).type) {
+    case TOK_CHAR:
+    case TOK_WILD:
+    case TOK_EOF:
+      return match(p, to_match);
+    case TOK_QUES:
+      if(p->prev_token.begin[0] == to_match[0])
+        to_match += 1;
+      parser_skip(p);
+      break;
+    }
+  }
 }
 
 int match(parser *p, const char* to_match) {
 
   for(;;) {
     switch(parser_peek(p).type) {
-    case TOK_CHAR:
-      if(parser_peek(p).begin[0] != to_match[0])
-        return 0;
+    case TOK_CHAR: {
       parser_skip(p);
-      to_match += 1;
+      return match_modifier(p, to_match);
+    }
       break;
     case TOK_WILD:
       parser_skip(p);
@@ -95,6 +115,10 @@ int match(parser *p, const char* to_match) {
       break;
     case TOK_EOF:
       return 1;
+    case TOK_QUES:              /* ERROR */
+    case TOK_OR:
+    case TOK_PLUS:
+    case TOK_AST:
     default:
       return 0;
     }
@@ -123,12 +147,12 @@ spec("regex") {
 
   it("parser should match single character") {
     parser p = new_parser("a");
-    check(match(&p, "a") == 1);
+    check(match(&p, "a"));
   }
 
   it("parser should match multiple character") {
     parser p = new_parser("abc");
-    check(match(&p, "abc") == 1);
+    check(match(&p, "abc"));
   }
 
   it("parser should match anything to wildcard character") {
@@ -136,8 +160,21 @@ spec("regex") {
     const char* alphabet[] = {"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "x", "y", "w", "z"};
     for(int i = 0; i < alphabet_len; i++) {
       parser p = new_parser(".");
-      check(match(&p, alphabet[i]) == 1);
+      check(match(&p, alphabet[i]));
     }
+  }
+
+  it("parser should match question mark (?) with zero or one occurence of preceding element") {
+    {
+      parser p = new_parser("ab?");
+      check(match(&p, "a"));
+    }
+
+    {
+      parser p = new_parser("ab?");
+      check(match(&p, "ab"));
+    }
+
   }
 
 }
