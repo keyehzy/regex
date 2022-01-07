@@ -7,13 +7,14 @@
   O('+')                                \
   O('|')                                \
   O('(')                                \
-  O(')')
+  O(')')                                \
+  O('\0')
 
 #define CASE(e) case e:
 #define CASE_SPECIAL_CHARACTERS ENUMERATE_SPECIAL_CHARACTERS(CASE)
 
 typedef enum {
-  TOK_CHAR,
+  TOK_CHAR = 'c',
   TOK_WILD = '.',
   TOK_QUES = '?',
   TOK_AST = '*',
@@ -21,6 +22,7 @@ typedef enum {
   TOK_OR = '|',
   TOK_LEFT_PAREN = '(',
   TOK_RIGHT_PAREN = ')',
+  TOK_EOF = '\0',
 } token_type;
 
 typedef struct {
@@ -78,16 +80,20 @@ void parser_skip(parser *p) {
 }
 
 int match(parser *p, const char* to_match) {
-  switch(parser_peek(p).type) {
-  case TOK_CHAR:
-    if(parser_peek(p).begin[0] == to_match[0]) {
+
+  for(;;) {
+    switch(parser_peek(p).type) {
+    case TOK_CHAR:
+      if(parser_peek(p).begin[0] != to_match[0])
+        return 0;
+      parser_skip(p);
+      to_match += 1;
+      break;
+    case TOK_EOF:
       return 1;
-    } else {
-      return 0;
+    default:
+      break;
     }
-    break;
-  default:
-    break;
   }
   return 0;
 }
@@ -101,9 +107,9 @@ spec("regex") {
 
   it("tokenizer should read a single character for each special character") {
 
-    const int len = 7;
-    const char *special_chars[] = {".", "?", "*", "+", "|", "(", ")"};
-    const token_type special_chars_types[] = {TOK_WILD, TOK_QUES, TOK_AST, TOK_PLUS, TOK_OR, TOK_LEFT_PAREN, TOK_RIGHT_PAREN};
+    const int len = 8;
+    const char *special_chars[] = {".", "?", "*", "+", "|", "(", ")", "\0"};
+    const token_type special_chars_types[] = {TOK_WILD, TOK_QUES, TOK_AST, TOK_PLUS, TOK_OR, TOK_LEFT_PAREN, TOK_RIGHT_PAREN, TOK_EOF};
 
     for (int i = 0; i < len; i++) {
       tokenizer tokenizer = new_tokenizer(special_chars[i]);
@@ -116,4 +122,10 @@ spec("regex") {
     parser p = new_parser("a");
     check(match(&p, "a") == 1);
   }
+
+  it("parser should match multiple character") {
+    parser p = new_parser("abc");
+    check(match(&p, "abc") == 1);
+  }
+
 }
