@@ -96,6 +96,15 @@ int match_modifier(parser *p, const char* to_match) {
         to_match += 1;
       parser_skip(p);
       break;
+    case TOK_AST:
+      if(p->prev_token.begin[0] == to_match[0]) {
+        to_match += 1;
+      } else {
+        parser_skip(p);
+      }
+      break;
+    default:
+      return 0;
     }
   }
 }
@@ -168,13 +177,22 @@ spec("regex") {
     {
       parser p = new_parser("ab?");
       check(match(&p, "a"));
-    }
-
-    {
-      parser p = new_parser("ab?");
       check(match(&p, "ab"));
     }
 
+    {
+      parser p = new_parser("colou?r");
+      check(match(&p, "color"));
+      check(match(&p, "colour"));
+    }
+  }
+
+  it("parser should match asterisk (*) with zero or more occurences of preceding element") {
+      parser p = new_parser("ab*c");
+      check(match(&p, "ac"));
+      check(match(&p, "abc"));
+      check(match(&p, "abbc"));
+      check(match(&p, "abbbc"));
   }
 
 }
