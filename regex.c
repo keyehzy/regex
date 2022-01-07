@@ -60,6 +60,38 @@ tokenizer new_tokenizer(const char* string) {
   return t;
 }
 
+typedef struct {
+  tokenizer tok_state;
+} parser;
+
+parser new_parser(const char* str) {
+  tokenizer toks = new_tokenizer(str);
+  return (parser) {.tok_state = toks};
+}
+
+token parser_peek(parser *p) {
+  return p->tok_state.last_token;
+}
+
+void parser_skip(parser *p) {
+  p->tok_state.last_token = tokenizer_next(&p->tok_state);
+}
+
+int match(parser *p, const char* to_match) {
+  switch(parser_peek(p).type) {
+  case TOK_CHAR:
+    if(parser_peek(p).begin[0] == to_match[0]) {
+      return 1;
+    } else {
+      return 0;
+    }
+    break;
+  default:
+    break;
+  }
+  return 0;
+}
+
 spec("regex") {
   it("tokenizer should read a single character") {
     tokenizer tokenizer = new_tokenizer("a");
@@ -78,6 +110,10 @@ spec("regex") {
       token t = tokenizer.last_token;
       check(t.type == special_chars_types[i]);
     }
+  }
 
+  it("parser should match single character") {
+    parser p = new_parser("a");
+    check(match(&p, "a") == 1);
   }
 }
