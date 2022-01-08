@@ -85,6 +85,8 @@ int match(parser *p, const char* to_match);
 
 int match_modifier(parser *p, const char* to_match) {
 
+  int plus_second_pass = 0;
+
   for(;;) {
     switch(parser_peek(p).type) {
     case TOK_CHAR:
@@ -103,6 +105,23 @@ int match_modifier(parser *p, const char* to_match) {
         parser_skip(p);
       }
       break;
+    case TOK_PLUS:
+      if(plus_second_pass) {
+        if(p->prev_token.begin[0] == to_match[0]) {
+          to_match += 1;
+        } else {
+          parser_skip(p);
+        }
+      } else {
+        if(p->prev_token.begin[0] == to_match[0]) {
+          to_match += 1;
+          plus_second_pass = 1;
+        } else {
+          parser_skip(p);
+          return 0;
+        }
+      }
+      break;
     default:
       return 0;
     }
@@ -110,7 +129,6 @@ int match_modifier(parser *p, const char* to_match) {
 }
 
 int match(parser *p, const char* to_match) {
-
   for(;;) {
     switch(parser_peek(p).type) {
     case TOK_CHAR: {
@@ -190,6 +208,14 @@ spec("regex") {
   it("parser should match asterisk (*) with zero or more occurences of preceding element") {
       parser p = new_parser("ab*c");
       check(match(&p, "ac"));
+      check(match(&p, "abc"));
+      check(match(&p, "abbc"));
+      check(match(&p, "abbbc"));
+  }
+
+  it("parser should match plus (+) with one or more occurences of preceding element") {
+      parser p = new_parser("ab+c");
+      check(!match(&p, "ac"));
       check(match(&p, "abc"));
       check(match(&p, "abbc"));
       check(match(&p, "abbbc"));
